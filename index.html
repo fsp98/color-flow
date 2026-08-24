@@ -883,6 +883,7 @@ button{font:inherit}
         <p>On your turn, play <b>one card</b> or draw <b>2 cards</b>.</p>
         <p>If the <b>draw pile runs out</b> and noone reached 5 colors, the round ends immediately in a draw (0 points for both).</p>
         <p>An unresolved Joker does not count toward the 5 different colors, nor does the black blocking card.</p>
+        <p>Keep in mind that the colors have different frequencies. Red, yellow and blue come up more often, while orange, green and purple are less common.</p>
       </section>
     </div>
 
@@ -896,7 +897,7 @@ button{font:inherit}
 
       <div class="rule-row">
         <span class="rule-icon rule-flow"></span>
-        <div><b>Two-color transition</b><br><span>Can be played on a matching color. The first color is what it needs; the second color is what that side becomes. It can also be played on a Joker to determine the color of that column.</span></div>
+        <div><b>Two-color transition</b><br><span>Can be played on a matching color. The first color is what it needs; the second color is what that side becomes. It can also be played on a Joker to determine the color of that column. If a card of this type starts a new column, the second color is active.</span></div>
       </div>
 
       <div class="rule-row">
@@ -906,12 +907,12 @@ button{font:inherit}
 
       <div class="rule-row">
         <span class="rule-icon rule-block">×</span>
-        <div><b>Black blocking card</b><br><span>Blocks one side of a column. You may only block a player who currently has at least 3 open columns. A blocked side can be reopened with a Joker or a Black transition card.</span></div>
+        <div><b>Black blocking card</b><br><span>Blocks one side of a column, doesn't matter which card is at the end of it. You may only block a player who currently has at least 3 open columns. A blocked side can be reopened with a Joker or a Black transition card.</span></div>
       </div>
 
       <div class="rule-row">
         <span class="rule-icon rule-white"></span>
-        <div><b>White card</b><br><span>Starts a new shared column with the top card of the draw pile. If another White is revealed, repeat. You may then optionally play one legal card from your hand on either side of that new column only.</span></div>
+        <div><b>White card</b><br><span>Starts a new shared column with the top card of the draw pile. If another White is revealed, draw again. You may then optionally play one legal card from your hand on either side of that new column only.</span></div>
       </div>
     </div>
 
