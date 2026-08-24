@@ -1,0 +1,2391 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Color Match – Quick Game</title>
+<style>
+:root{
+  --bg:#101217;--panel:#1a1e26;--panel2:#232936;--text:#f7f7f8;--muted:#a8afbb;
+}
+*{box-sizing:border-box}
+body{
+  margin:0;width:100%;max-width:none;min-height:100vh;background:
+  radial-gradient(circle at 20% 15%,rgba(255,255,255,.055),transparent 32%),
+  radial-gradient(circle at 80% 85%,rgba(255,255,255,.04),transparent 34%),
+  var(--bg);color:var(--text);font-family:Inter,system-ui,-apple-system,"Segoe UI",sans-serif;
+}
+button{font:inherit}
+.hidden{display:none!important}
+.center{
+  min-height:100vh;display:grid;place-items:center;padding:24px;text-align:center
+}
+.loader-card{
+  width:min(470px,100%);background:var(--panel);border:1px solid rgba(255,255,255,.08);
+  border-radius:28px;padding:34px;box-shadow:0 20px 60px rgba(0,0,0,.38)
+}
+.logo{font-size:clamp(28px,7vw,46px);font-weight:1000;letter-spacing:-2px}
+.muted{color:var(--muted)}
+.spinner{
+  width:48px;height:48px;border:5px solid rgba(255,255,255,.12);border-top-color:#fff;
+  border-radius:50%;margin:28px auto 18px;animation:spin .85s linear infinite
+}
+@keyframes spin{to{transform:rotate(360deg)}}
+.dot{animation:pulse 1.1s infinite alternate}
+@keyframes pulse{to{opacity:.35}}
+.app{width:100%;max-width:none;margin:0;padding:8px}
+.top{
+  width:100%;display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:6px
+}
+.title{font-size:26px;font-weight:1000}
+.badge{
+  padding:8px 12px;border-radius:999px;background:#222833;color:#cfd5df;font-size:12px;font-weight:800
+}
+.grid{display:grid;grid-template-columns:minmax(0,1fr);gap:12px;width:100%}
+.panel{
+  background:
+    linear-gradient(180deg,rgba(255,255,255,.035),rgba(255,255,255,.012)),
+    rgba(26,30,38,.94);
+  border:1px solid rgba(255,255,255,.09);
+  border-radius:22px;
+  box-shadow:0 16px 40px rgba(0,0,0,.28), inset 0 1px 0 rgba(255,255,255,.03);
+}
+.side{padding:16px}
+.pname{font-size:18px;font-weight:900}.small{font-size:12px;color:var(--muted)}
+.playerbox{padding:14px;border-radius:16px;background:#12151b;margin-bottom:10px;border:1px solid rgba(255,255,255,.06)}
+.playerbox.active{outline:2px solid #fff}
+.table{
+  width:100%;max-width:none;min-height:360px;display:flex;justify-content:flex-start;align-items:center;gap:6px;padding:10px 18px 10px 6px;
+  position:relative;overflow:visible
+}
+.table:before{content:"";position:absolute;inset:0;background:radial-gradient(circle,rgba(255,255,255,.055),transparent 55%)}
+.pile{text-align:center;z-index:1}
+.label{font-size:11px;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);font-weight:900;margin-bottom:8px}
+.card{
+  width:80px;height:118px;border-radius:18px;border:5px solid rgba(255,255,255,.92);
+  display:flex;justify-content:center;align-items:center;position:relative;flex:0 0 auto;
+  box-shadow:0 12px 26px rgba(0,0,0,.36);user-select:none
+}
+.card .n{font-size:44px;font-weight:1000;text-shadow:0 2px 2px rgba(0,0,0,.18)}
+.card .c{position:absolute;font-size:19px;font-weight:1000}.tl{top:8px;left:10px}.br{bottom:8px;right:10px;transform:rotate(180deg)}
+.c0{background:#e53935}
+.c1{background:#1e88e5}
+.c2{background:#43a047}
+.c3{background:#fbc02d;color:#171717}
+.c4{background:#8e24aa}
+.c5{background:#fb8c00}
+.black{background:#050505;color:#fff}
+.rainbow{
+  color:#fff;
+  background:conic-gradient(
+    #fbc02d 0 16.666%,
+    #fb8c00 16.666% 33.333%,
+    #e53935 33.333% 50%,
+    #8e24aa 50% 66.666%,
+    #3949ab 66.666% 83.333%,
+    #43a047 83.333% 100%
+  );
+}
+.shared-column-base{
+  transform:rotate(90deg) scale(.50)!important;
+}
+.blockcard{
+  background:#050505;
+  color:#fff;
+}
+.blockcard .n{
+  font-size:64px;
+  line-height:1;
+}
+.pilemini.selectable .card{
+  cursor:pointer;
+  outline:4px solid rgba(255,255,255,.9);
+  outline-offset:3px;
+}
+.pilemini.blocked .card{
+  filter:brightness(.55) grayscale(.35);
+}
+.pilemini.blocked{
+  opacity:.82;
+}
+.back{
+  position:relative;
+  overflow:hidden;
+  border-color:#242936;
+  background:conic-gradient(
+    from -30deg at 50% 50%,
+    #fbc02d 0 16.666%,
+    #fb8c00 16.666% 33.333%,
+    #e53935 33.333% 50%,
+    #8e24aa 50% 66.666%,
+    #3949ab 66.666% 83.333%,
+    #43a047 83.333% 100%
+  );
+}
+.flowcard{
+  overflow:hidden;
+  position:relative;
+}
+/* The card's background is the destination color.
+   A large triangular wedge in the source color points into it,
+   so the direction reads visually as FROM → TO without symbols. */
+.flowcard .destination{
+  position:absolute;inset:0;
+}
+.flowcard .source{
+  position:absolute;z-index:2;
+  left:0;top:0;width:100%;height:42%;
+  clip-path:polygon(0 0,100% 0,100% 42%,50% 100%,0 42%);
+}
+.flowcard.reverse-flow .source{
+  top:auto;
+  bottom:0;
+  clip-path:polygon(0 58%,50% 0,100% 58%,100% 100%,0 100%);
+}
+.purple-rescue.reverse-flow:before{
+  top:auto;
+  bottom:0;
+  clip-path:polygon(0 58%,50% 0,100% 58%,100% 100%,0 100%);
+}
+.piles{
+  display:block;
+  z-index:1;
+  width:100%;
+  max-width:none;
+  min-width:0;
+  overflow-x:auto;
+  overflow-y:visible;
+  padding:6px 4px 6px;
+}
+.pilemini{text-align:center}
+.pilemini .card{width:76px;height:112px}
+.pilemini .label{margin-top:7px;margin-bottom:0}
+
+.deckbtn{cursor:pointer;transition:.15s}.deckbtn:hover{transform:translateY(-4px)}
+.handpanel{width:100%;margin-top:6px;padding:8px 8px}
+.handhead{display:flex;justify-content:space-between;align-items:end;gap:12px}
+.hand{display:flex;gap:8px;overflow-x:auto;padding:6px 4px 2px}
+.hand .card{width:72px;height:106px;border-width:4px;border-radius:15px;cursor:pointer;transition:.14s}
+.hand .card .n{font-size:34px}.hand .card .c{font-size:15px}
+.hand .card:hover{transform:translateY(-7px)}
+.hand .invalid{opacity:.42;filter:grayscale(.7);cursor:not-allowed}
+.action{
+  border:0;border-radius:13px;background:#fff;color:#111;padding:10px 14px;font-weight:900;cursor:pointer
+}
+.action:disabled{opacity:.35;cursor:not-allowed}
+.status{margin-top:12px;padding:12px;border-radius:14px;background:#12151b;color:var(--muted);font-size:13px;line-height:1.45}
+.overlay{position:fixed;inset:0;background:rgba(7,9,12,.94);display:grid;place-items:center;padding:20px;z-index:40}
+.modal{width:min(460px,100%);background:var(--panel);border-radius:26px;padding:30px;text-align:center;border:1px solid rgba(255,255,255,.08)}
+.modal h2{font-size:30px;margin:6px 0}.big{font-size:54px}
+@media(max-width:820px){.grid{grid-template-columns:1fr}.side.right{display:none}.table{min-height:300px}.side.left{order:2}.table{order:1}}
+@media(max-width:520px){.app{padding:4px}.table{gap:8px;padding:10px 4px}.card{width:68px;height:100px}.card .n{font-size:32px}.hand .card{width:60px;height:88px}.hand .card .n{font-size:28px}}
+
+.shared-base{
+  position:relative;
+}
+.shared-base{
+  position:relative;
+}
+.shared-base .tri-up,
+.shared-base .tri-down{
+  position:absolute;
+  top:50%;
+  width:0;
+  height:0;
+  transform:translateY(-50%);
+  z-index:4;
+  opacity:.95;
+}
+/* Single-color cards are played sideways, so their markers point outward. */
+.shared-base .tri-up{
+  left:20%;
+  border-top:10px solid transparent;
+  border-bottom:10px solid transparent;
+  border-right:16px solid rgba(255,255,255,.92);
+}
+.shared-base .tri-down{
+  right:20%;
+  border-top:10px solid transparent;
+  border-bottom:10px solid transparent;
+  border-left:16px solid rgba(255,255,255,.92);
+}
+.empty-slot{
+  width:80px;
+  height:118px;
+  border-radius:15px;
+  border:3px solid rgba(255,255,255,.22);
+  background:rgba(255,255,255,.025);
+  position:relative;
+}
+.empty-slot:before{
+  content:"";
+  position:absolute;
+  inset:8px;
+  border-radius:11px;
+  border:1px dashed rgba(255,255,255,.12);
+}
+.side-slot.selectable .empty-slot{
+  cursor:pointer;
+  outline:4px solid rgba(255,255,255,.9);
+  outline-offset:3px;
+  border-color:rgba(255,255,255,.22);
+  background:rgba(255,255,255,.025);
+  box-shadow:none;
+}
+.side-slot.selectable .empty-slot:before{
+  border-color:rgba(255,255,255,.12);
+}
+
+.purple-rescue{
+  position:relative;
+  overflow:hidden;
+  background:#8e24aa;
+}
+.purple-rescue:before{
+  content:"";
+  position:absolute;
+  left:0;top:0;width:100%;height:38%;
+  background:#050505;
+  clip-path:polygon(0 0,100% 0,100% 42%,50% 100%,0 42%);
+}
+.board-columns{
+  display:flex;
+  gap:10px;
+  justify-content:space-evenly;
+  align-items:flex-start;
+  flex-wrap:nowrap;
+  width:100%;
+  min-width:max-content;
+  max-width:none;
+}
+.board-column{
+  display:grid;
+  grid-template-rows:108px 64px 108px;
+  align-items:center;
+  justify-items:center;
+  gap:0;
+  min-width:80px;
+}
+.side-slot{
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  min-height:108px;
+  width:100%;
+  position:relative;
+}
+.side-slot.selectable .card{
+  cursor:pointer;
+  outline:4px solid rgba(255,255,255,.9);
+  outline-offset:3px;
+}
+.side-slot.blocked .card{
+  filter:brightness(.55) grayscale(.3);
+}
+.center-base{
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  position:relative;
+}
+.center-base .card{
+  transform:scale(.82);
+}
+
+
+
+
+.fly-card{
+  position:fixed;
+  z-index:9999;
+  margin:0;
+  pointer-events:none;
+  transition:
+    transform .38s cubic-bezier(.2,.8,.2,1),
+    opacity .38s ease;
+  transform-origin:center center;
+}
+@media (prefers-reduced-motion: reduce){
+  .fly-card{transition:none!important}
+}
+ 
+.compact-stats{
+  font-size:12px;
+  font-weight:800;
+  color:var(--muted);
+  white-space:nowrap;
+}
+.table-status{
+  position:absolute;
+  left:18px;
+  top:14px;
+  z-index:3;
+  max-width:180px;
+  padding:0;
+  background:none;
+  border:0;
+  font-size:11px;
+  color:var(--muted);
+}
+
+.draw-area{
+  position:relative;
+  flex:0 0 132px;
+  width:132px;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  margin-left:28px;
+  margin-right:10px;
+}
+#deck{
+  transform:none!important;
+  rotate:0deg!important;
+}
+
+
+.new-column-target{
+  position:absolute;
+  right:16px;
+  top:14px;
+  z-index:5;
+  border:2px dashed rgba(255,255,255,.55);
+  background:rgba(255,255,255,.05);
+  color:#fff;
+  border-radius:10px;
+  padding:8px 10px;
+  font-size:11px;
+  font-weight:900;
+  cursor:pointer;
+}
+.new-column-target:hover{background:rgba(255,255,255,.1)}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+.board-wrap{
+  z-index:1;
+  min-width:0;
+  flex:1;
+  width:100%;
+  display:grid;
+  grid-template-rows:22px minmax(0,1fr) 18px;
+  gap:0;
+  padding-top:10px;
+  box-sizing:border-box;
+}
+.side-guide{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  font-size:11px;
+  font-weight:1000;
+  letter-spacing:.14em;
+  color:rgba(255,255,255,.88);
+  white-space:nowrap;
+  text-transform:uppercase;
+  text-shadow:0 1px 8px rgba(0,0,0,.65);
+}
+.side-guide:before,
+.side-guide:after{
+  content:"";
+  height:1px;
+  flex:1;
+  background:linear-gradient(90deg,transparent,rgba(255,255,255,.30),transparent);
+}
+.side-guide span{
+  padding:3px 9px;
+  border-radius:999px;
+  background:rgba(255,255,255,.08);
+  border:1px solid rgba(255,255,255,.16);
+}
+.guide-top span:after{content:"  ↑";}
+.guide-bottom span:after{content:"  ↓";}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+.rules-overlay{
+  position:fixed;
+  inset:0;
+  z-index:9998;
+  display:grid;
+  place-items:center;
+  padding:18px;
+  background:rgba(5,7,11,.76);
+  backdrop-filter:blur(7px);
+}
+.rules-overlay.hidden{display:none}
+.rules-modal{
+  width:min(900px,96vw);
+  max-height:88vh;
+  overflow:auto;
+  border-radius:24px;
+  padding:18px;
+  background:
+    radial-gradient(circle at 10% 0%,rgba(57,73,171,.18),transparent 26%),
+    radial-gradient(circle at 90% 8%,rgba(251,140,0,.14),transparent 24%),
+    #151922;
+  border:1px solid rgba(255,255,255,.11);
+  box-shadow:0 24px 80px rgba(0,0,0,.55);
+}
+.rules-head{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:12px;
+  margin-bottom:14px;
+}
+.rules-kicker{
+  font-size:10px;
+  font-weight:1000;
+  letter-spacing:.18em;
+  color:#fbc02d;
+}
+.rules-head h2{margin:2px 0 0;font-size:24px}
+.rules-close{
+  border:0;
+  background:rgba(255,255,255,.08);
+  color:#fff;
+  width:38px;height:38px;
+  border-radius:12px;
+  font-size:24px;
+  cursor:pointer;
+}
+.rules-grid{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:10px;
+}
+.rules-card{
+  padding:12px;
+  border-radius:16px;
+  background:rgba(255,255,255,.045);
+  border:1px solid rgba(255,255,255,.07);
+}
+.rules-card h3,.rules-types h3{margin:0 0 7px;font-size:15px}.rules-card .rules-subhead{margin-top:14px}
+.rules-card p{
+  margin:5px 0;
+  color:#d5dae3;
+  font-size:12px;
+  line-height:1.45;
+}
+.score-formula{
+  margin:8px 0;
+  padding:9px 10px;
+  border-radius:12px;
+  background:linear-gradient(90deg,rgba(251,192,45,.14),rgba(142,36,170,.12));
+  border:1px solid rgba(255,255,255,.08);
+  font-size:12px;
+  font-weight:900;
+}
+.rules-types{
+  margin-top:12px;
+  padding:12px;
+  border-radius:16px;
+  background:rgba(255,255,255,.025);
+  border:1px solid rgba(255,255,255,.07);
+}
+.rule-row{
+  display:grid;
+  grid-template-columns:34px 1fr;
+  gap:10px;
+  align-items:center;
+  padding:8px 0;
+  border-top:1px solid rgba(255,255,255,.06);
+}
+.rule-row:first-of-type{border-top:0}
+.rule-row b{font-size:12px}
+.rule-row span{font-size:11px;color:#c7ccd6;line-height:1.4}
+.rule-icon{
+  width:28px;height:40px;
+  border-radius:6px;
+  border:2px solid rgba(255,255,255,.72);
+  display:grid;
+  place-items:center;
+  position:relative;
+  overflow:hidden;
+  font-size:18px;
+  font-weight:1000;
+  color:#fff;
+}
+.rule-single{background:#43a047}
+.rule-single:before,
+.rule-single:after{
+  content:"";
+  position:absolute;
+  top:50%;
+  width:0;
+  height:0;
+  transform:translateY(-50%);
+  border:0;
+}
+.rule-single:before{
+  left:4px;
+  border-top:3px solid transparent;
+  border-bottom:3px solid transparent;
+  border-right:5px solid #fff;
+}
+.rule-single:after{
+  right:4px;
+  left:auto;
+  border-top:3px solid transparent;
+  border-bottom:3px solid transparent;
+  border-left:5px solid #fff;
+}
+.rule-flow{background:#fbc02d}
+.rule-flow:before{
+  content:"";position:absolute;inset:0;background:#1e88e5;
+  clip-path:polygon(0 0,100% 0,100% 42%,50% 76%,0 42%)
+}
+.rule-joker{
+  background:conic-gradient(#fbc02d 0 16.66%,#fb8c00 16.66% 33.33%,#e53935 33.33% 50%,#8e24aa 50% 66.66%,#3949ab 66.66% 83.33%,#43a047 83.33% 100%)
+}
+.rule-block{background:#050505}
+.rule-black-purple{background:#8e24aa}
+.rule-black-orange{background:#fb8c00}
+.rule-black-green{background:#43a047}
+.rule-black-purple:before,.rule-black-orange:before,.rule-black-green:before{
+  content:"";position:absolute;inset:0;background:#050505;
+  clip-path:polygon(0 0,100% 0,100% 40%,50% 72%,0 40%)
+}
+.rules-foot{
+  display:flex;
+  justify-content:flex-end;
+  margin-top:12px;
+}
+@media(max-width:700px){
+  .rules-grid{grid-template-columns:1fr}
+  .rules-modal{padding:14px}
+}
+
+
+.deck-rules{margin-top:12px}
+.deck-group{
+  padding:10px 0;
+  border-top:1px solid rgba(255,255,255,.06);
+}
+.deck-group:first-of-type{border-top:0}
+.deck-group-title{
+  display:flex;
+  align-items:center;
+  gap:9px;
+  margin-bottom:7px;
+}
+.deck-group-title .rule-icon{
+  width:22px;
+  height:31px;
+  font-size:14px;
+}
+.deck-grid{
+  display:flex;
+  flex-wrap:wrap;
+  gap:7px 14px;
+  font-size:11px;
+  color:#c7ccd6;
+}
+.deck-entry{
+  display:inline-flex;
+  align-items:center;
+  gap:4px;
+  white-space:nowrap;
+  min-width:72px;
+}
+.deck-entry b{color:#fff;margin-left:2px}
+.dot-arrow{
+  font-size:10px;
+  line-height:1;
+  color:rgba(255,255,255,.62);
+}
+.deck-group.two-col{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:12px;
+}
+@media(max-width:700px){
+  .deck-grid{display:flex}
+  .deck-group.two-col{grid-template-columns:1fr}
+}
+
+.color-dot{
+  display:inline-block;
+  width:8px;
+  height:8px;
+  border-radius:50%;
+  vertical-align:middle;
+  margin:0 2px;
+  box-shadow:0 0 0 1px rgba(255,255,255,.25);
+}
+.dot-yellow{background:#fbc02d}
+.dot-red{background:#e53935}
+.dot-green{background:#43a047}
+.dot-blue{background:#3949ab}
+.dot-orange{background:#fb8c00}
+.dot-purple{background:#8e24aa}
+.dot-black{background:#050505;box-shadow:0 0 0 1px rgba(255,255,255,.5)}
+.dot-sep{
+  display:inline-block;
+  width:5px;
+}
+
+
+
+@keyframes lastMovePulse{
+  0%,100%{box-shadow:0 0 0 2px rgba(255,255,255,.18),0 0 14px rgba(255,255,255,.10)}
+  50%{box-shadow:0 0 0 3px rgba(255,255,255,.72),0 0 24px rgba(255,255,255,.30)}
+}
+.last-opponent-move{
+  position:relative;
+  z-index:4;
+  animation:lastMovePulse 1.35s ease-in-out infinite;
+}
+#deck.last-opponent-draw{
+  animation:lastMovePulse 1.35s ease-in-out infinite;
+  border-radius:16px;
+}
+.whitecard{
+  background:#f7f7f4!important;
+  color:#222!important;
+  border:2px solid #d8d8d2!important;
+}
+#passWhiteBtn{display:none!important}
+#drawBtn.white-end-turn{
+  font-weight:900;
+  letter-spacing:.03em;
+  transform:translateY(-1px);
+  box-shadow:0 5px 18px rgba(0,0,0,.24), inset 0 0 0 1px rgba(255,255,255,.16);
+}
+
+.turn-indicator{
+  position:fixed;
+  top:10px;
+  left:50%;
+  transform:translateX(-50%);
+  z-index:40;
+  padding:7px 18px;
+  border-radius:999px;
+  background:rgba(20,20,24,.92);
+  border:2px solid rgba(255,255,255,.28);
+  box-shadow:0 4px 14px rgba(0,0,0,.28);
+  color:#fff;
+  font-size:14px;
+  font-weight:900;
+  letter-spacing:.08em;
+  text-transform:uppercase;
+  pointer-events:none;
+}
+
+.rule-white{
+  background:#f7f7f4!important;
+  border:2px solid #d7d7d2!important;
+  color:#252525!important;
+  box-shadow:inset 0 0 0 1px rgba(0,0,0,.04);
+  position:relative;
+  display:inline-flex!important;
+  align-items:center;
+  justify-content:center;
+  transform:none;
+}
+.rule-white::before{
+  content:"";
+  width:15px;
+  height:22px;
+  background:#333;
+  clip-path:polygon(50% 0, 86% 23%, 100% 50%, 86% 77%, 50% 100%, 14% 77%, 0 50%, 14% 23%);
+}
+.rule-white::after{
+  content:"";
+  position:absolute;
+  width:5px;
+  height:5px;
+  border-radius:50%;
+  background:#f7f7f4;
+}
+.white-eye{
+  position:relative;
+  width:30px;
+  height:44px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  transform:none!important;
+}
+.white-eye::before{
+  content:"";
+  width:28px;
+  height:42px;
+  background:#333;
+  clip-path:polygon(50% 0, 86% 23%, 100% 50%, 86% 77%, 50% 100%, 14% 77%, 0 50%, 14% 23%);
+}
+.white-eye::after{
+  content:"";
+  position:absolute;
+  width:9px;
+  height:9px;
+  border-radius:50%;
+  background:#f7f7f4;
+}
+
+
+.nickname-panel{
+  width:min(280px,100%);
+  margin:16px auto 8px;
+  display:grid;
+  gap:9px;
+  text-align:left;
+}
+.nickname-panel label{
+  font-size:12px;
+  font-weight:800;
+  letter-spacing:.06em;
+  text-transform:uppercase;
+  opacity:.72;
+}
+.nickname-panel input{
+  width:100%;
+  box-sizing:border-box;
+  border-radius:10px;
+  border:1px solid rgba(255,255,255,.18);
+  background:rgba(255,255,255,.08);
+  color:#fff;
+  padding:11px 12px;
+  font:inherit;
+  outline:none;
+}
+.nickname-panel input:focus{
+  border-color:rgba(255,255,255,.5);
+}
+.nickname-help{
+  margin:0;
+  text-align:center;
+  font-size:11px;
+}
+</style>
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-database-compat.js"></script>
+</head>
+<body>
+
+<section id="loading" class="center">
+  <div class="loader-card">
+    <div class="logo">COLOR FLOW</div>
+    <p class="muted">Quick Game</p>
+
+    <div id="nicknamePanel" class="nickname-panel">
+      <label for="nicknameInput">Nickname</label>
+      <input id="nicknameInput" type="text" maxlength="18" autocomplete="nickname" placeholder="Player" />
+      <button id="nicknameBtn" class="action" type="button">Find opponent</button>
+      <p class="muted nickname-help">Your opponent will see this name.</p>
+    </div>
+
+    <div id="matchSpinner" class="spinner hidden"></div>
+    <h2 id="loadingTitle">Choose a nickname</h2>
+    <p id="loadingText" class="muted">Then join Quick Game matchmaking.</p>
+  </div>
+</section>
+
+<main id="game" class="app hidden" style="max-width:none;width:100%">
+    <div id="turnIndicator" class="turn-indicator">PLAYER 1'S TURN</div>
+  <header class="top">
+    <div>
+      <div style="display:flex;align-items:baseline;gap:12px;flex-wrap:wrap">
+        <div class="title">COLOR FLOW</div>
+        <div id="compactStats" class="compact-stats"></div>
+      </div>
+      <div class="small">Online Quick Game</div>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <button id="rulesBtn" class="action" style="padding:8px 12px">Rules</button>
+      <div id="connectionBadge" class="badge">CONNECTING</div>
+      <button id="leaveBtn" class="action" style="padding:8px 12px">Leave game</button>
+    </div>
+  </header>
+
+  <div class="grid">
+
+    <section class="panel table">
+      <div id="status" class="status table-status"></div>
+      <button id="newColumnTarget" class="new-column-target hidden" type="button">New column</button>
+      <div class="pile draw-area">
+        <div class="label">Draw pile</div>
+        <div id="deck" class="card back deckbtn" title="Draw a card"></div>
+        <div id="deckCount" class="small" style="margin-top:8px"></div>
+        <button id="passWhiteBtn" class="secondary hidden">End turn</button>
+        <button id="drawBtn" class="action" style="margin-top:12px">Draw 2 cards</button>
+      </div>
+      <div class="board-wrap">
+        <div class="side-guide guide-top"><span id="opponentGuide">OPPONENT</span></div>
+        <div id="piles" class="piles"></div>
+        <div class="side-guide guide-bottom"><span id="youGuide">YOU</span></div>
+      </div>
+    </section>
+  </div>
+
+  <section class="panel handpanel">
+    <div class="handhead">
+      <div>
+        <div id="turnHeading" class="pname"></div>
+        <div id="hint" class="small"></div>
+      </div>
+      <button id="passBtn" class="action hidden">End turn</button>
+    </div>
+    <div id="hand" class="hand"></div>
+  </section>
+</main>
+
+
+<div id="rulesOverlay" class="rules-overlay hidden">
+  <div class="rules-modal">
+    <div class="rules-head">
+      <div>
+        <div class="rules-kicker">HOW TO PLAY</div>
+        <h2>COLOR FLOW Rules</h2>
+      </div>
+      <button id="rulesClose" class="rules-close" type="button" aria-label="Close rules">×</button>
+    </div>
+
+    <div class="rules-grid">
+      <section class="rules-card">
+        <h3>Goal</h3>
+        <p>Be the first player in a round to have <b>5 different active colors</b> on your own side of the shared columns. Rounds award points. The first player to reach <b>25 points</b> wins the match.</p>
+
+        <h3 class="rules-subhead">Scoring</h3>
+        <p>When a player reaches 5 different colors, that round ends immediately. If a single played card causes both players to reach 5 colors at the same time, <b>the player who played that card wins the round</b>.</p>
+        <div class="score-formula">Score = 5 × (5 − opponent colors) + opponent cards − your cards</div>
+        <p>So when you finish, having fewer cards in your hand is also good. <b>A round win can never award negative points; the minimum score is 0.</b></p>
+      </section>
+
+      <section class="rules-card">
+        <h3>Playing the game</h3>
+        <p>The round starts with <b>3 shared columns</b>. Cards in the middle create shared columns, and each player builds on their own side. The two sides can develop into different colors.</p>
+        <p>On your turn, play <b>one card</b> or draw <b>2 cards</b>. Drawing ends your turn, and drawn cards cannot be played until a later turn.</p>
+        <p>If the <b>draw pile runs out</b>, the round ends immediately. No cards are reshuffled and <b>no points are awarded</b>, unless the card just played has already completed 5 colors and ended the round normally.</p>
+        <p>You can sometimes play on either your own or your opponent's side. The opponent's last played card is highlighted on the board; if they drew instead, the draw pile is highlighted.</p>
+        <p>A shared Joker starts unresolved and does not count toward the 5 different colors while unresolved. The first two-color card played on it determines the starting color for both sides of that column.</p>
+      </section>
+    </div>
+
+    <div class="rules-types">
+      <h3>Card effects</h3>
+
+      <div class="rule-row">
+        <span class="rule-icon rule-single"></span>
+        <div><b>Single-color card</b><br><span>Starts a new shared column in that color for both players.</span></div>
+      </div>
+
+      <div class="rule-row">
+        <span class="rule-icon rule-flow"></span>
+        <div><b>Two-color transition</b><br><span>Can be played on a matching color. The first color is what it needs; the second color is what that side becomes. It can also be played on a Joker to determine the color of that column.</span></div>
+      </div>
+
+      <div class="rule-row">
+        <span class="rule-icon rule-joker">★</span>
+        <div><b>Rainbow Joker</b><br><span>Can start a new shared wild column. While unresolved, it does not count toward the 5 different colors. It can also reopen one blocked side as wild. If a column starts with Black, the Joker is placed on one side only while the other side remains blocked.</span></div>
+      </div>
+
+      <div class="rule-row">
+        <span class="rule-icon rule-block">×</span>
+        <div><b>Black blocking card</b><br><span>Blocks one side of a column. You may only block a player who currently has at least 3 open columns; once they are down to 2, they cannot be blocked again. A blocked side can be reopened with a Joker or a Black → Color card.</span></div>
+      </div>
+
+      <div class="rule-row">
+        <span class="rule-icon rule-white"></span>
+        <div><b>White card</b><br><span>Starts a new shared column with the top card of the draw pile. If another White is revealed, reveal again until a non-White card appears. You may then optionally play one legal card from your hand on either side of that new column only. This bonus cannot create another column: Single-color and White cards cannot be used, and a Joker can only be used if it legally covers Black on the new column. Then your turn ends.</span></div>
+      </div>
+    </div>
+
+    <div class="rules-types deck-rules">
+      <h3>Deck composition · 77 cards</h3>
+
+      <div class="deck-group">
+        <div class="deck-group-title"><span class="rule-icon rule-single"></span><b>Single colors · 6</b></div>
+        <div class="deck-grid">
+          <span class="deck-entry"><span class="color-dot dot-yellow"></span><b>1×</b></span>
+          <span class="deck-entry"><span class="color-dot dot-red"></span><b>1×</b></span>
+          <span class="deck-entry"><span class="color-dot dot-green"></span><b>1×</b></span>
+          <span class="deck-entry"><span class="color-dot dot-blue"></span><b>1×</b></span>
+          <span class="deck-entry"><span class="color-dot dot-orange"></span><b>1×</b></span>
+          <span class="deck-entry"><span class="color-dot dot-purple"></span><b>1×</b></span>
+        </div>
+      </div>
+
+      <div class="deck-group">
+        <div class="deck-group-title"><span class="rule-icon rule-flow"></span><b>Two-color cards · 49</b></div>
+        <div class="deck-grid">
+          <span class="deck-entry"><span class="color-dot dot-green"></span><span class="dot-arrow">→</span><span class="color-dot dot-yellow"></span><b>4×</b></span>
+          <span class="deck-entry"><span class="color-dot dot-green"></span><span class="dot-arrow">→</span><span class="color-dot dot-blue"></span><b>1×</b></span>
+          <span class="deck-entry"><span class="color-dot dot-yellow"></span><span class="dot-arrow">→</span><span class="color-dot dot-orange"></span><b>4×</b></span>
+          <span class="deck-entry"><span class="color-dot dot-yellow"></span><span class="dot-arrow">→</span><span class="color-dot dot-red"></span><b>8×</b></span>
+          <span class="deck-entry"><span class="color-dot dot-red"></span><span class="dot-arrow">→</span><span class="color-dot dot-orange"></span><b>1×</b></span>
+          <span class="deck-entry"><span class="color-dot dot-red"></span><span class="dot-arrow">→</span><span class="color-dot dot-blue"></span><b>7×</b></span>
+          <span class="deck-entry"><span class="color-dot dot-blue"></span><span class="dot-arrow">→</span><span class="color-dot dot-yellow"></span><b>8×</b></span>
+          <span class="deck-entry"><span class="color-dot dot-blue"></span><span class="dot-arrow">→</span><span class="color-dot dot-green"></span><b>5×</b></span>
+          <span class="deck-entry"><span class="color-dot dot-orange"></span><span class="dot-arrow">→</span><span class="color-dot dot-blue"></span><b>5×</b></span>
+          <span class="deck-entry"><span class="color-dot dot-black"></span><span class="dot-arrow">→</span><span class="color-dot dot-purple"></span><b>4×</b></span>
+          <span class="deck-entry"><span class="color-dot dot-black"></span><span class="dot-arrow">→</span><span class="color-dot dot-orange"></span><b>1×</b></span>
+          <span class="deck-entry"><span class="color-dot dot-black"></span><span class="dot-arrow">→</span><span class="color-dot dot-green"></span><b>1×</b></span>
+        </div>
+      </div>
+
+      <div class="deck-group two-col">
+        <div class="deck-group-title"><span class="rule-icon rule-joker">★</span><b>Rainbow Jokers · 6</b></div>
+        <div class="deck-group-title"><span class="rule-icon rule-block">×</span><b>Blocking cards · 8</b></div>
+      </div>
+
+      <div class="deck-group">
+        <div class="deck-group-title"><span class="rule-icon rule-white"></span><b>White cards · 8</b></div>
+      </div>
+    </div>
+
+    <div class="rules-foot">
+      <button id="rulesCloseBottom" class="action" type="button">Got it</button>
+    </div>
+  </div>
+</div>
+
+<div id="resultOverlay" class="overlay hidden">
+  <div class="modal">
+    <div id="resultIcon" class="big">🏆</div>
+    <h2 id="resultTitle"></h2>
+    <p id="resultText" class="muted"></p>
+    <button id="resultActionBtn" class="action">Find new opponent</button>
+  </div>
+</div>
+
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyAR17pQjPkHt7Yp0TF_dltG_2eghDywybI",
+  authDomain: "test-4ca6a.firebaseapp.com",
+  databaseURL: "https://test-4ca6a-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "test-4ca6a",
+  storageBucket: "test-4ca6a.firebasestorage.app",
+  messagingSenderId: "473075486180",
+  appId: "1:473075486180:web:3590935ef4b9b553098bf1"
+};
+firebase.initializeApp(firebaseConfig);
+const db=firebase.database();
+
+const COLORS = [
+  {id:0,name:"Yellow",className:"c3"},
+  {id:1,name:"Red",className:"c0"},
+  {id:2,name:"Green",className:"c2"},
+  {id:3,name:"Purple",className:"c4"},
+  {id:4,name:"Blue",className:"c1"},
+  {id:5,name:"Orange",className:"c5"}
+];
+
+const els = Object.fromEntries([
+  "loading","loadingTitle","loadingText","game","connectionBadge","compactStats","status","newColumnTarget","deck","deckCount","drawBtn","piles","turnHeading",
+  "hint","passBtn","hand","resultOverlay","resultIcon","resultTitle","resultText","leaveBtn","resultActionBtn","rulesBtn","rulesOverlay","rulesClose","rulesCloseBottom","passWhiteBtn","turnIndicator","nicknamePanel","nicknameInput","nicknameBtn","matchSpinner","opponentGuide","youGuide"].map(id=>[id,document.getElementById(id)]));
+
+let state = null;
+let currentPlayerIndex = 0;
+let drawnThisTurn = false;
+let drawnCardId = null;
+let gameOver = false;
+let matchScores = [0,0];
+let matchWinner = null;
+let roundNumber = 0;
+let lastRoundLoser = null;
+let pendingBlockCardId = null;
+let pendingFlowCardId = null;
+let pendingSpecialCardId = null;
+let pendingWhiteFollowupColumn = null;
+let lastPlayed = null;
+let myPlayerIndex = null;
+let roomId = null;
+let roomRef = null;
+let roomListener = null;
+let assignmentRef = null;
+let assignmentListener = null;
+let waitingHeartbeat = null;
+let uid = "p_" + Math.random().toString(36).slice(2) + Date.now().toString(36);
+let nickname = "Player";
+let syncingRemote = false;
+
+
+function createDeck(){
+  let id=0,deck=[];
+
+  // Shared single-color bases: 1 of each color.
+  for(const color of COLORS){
+    deck.push({id:id++,type:"single",color:color.id});
+  }
+
+  // Directed transition distribution.
+  // IDs: 0 Yellow, 1 Red, 2 Green, 3 Purple, 4 Blue, 5 Orange.
+  const transitions = [
+    [2,0,4],   // Green -> Yellow
+    [2,4,1],   // Green -> Blue
+    [0,5,4],   // Yellow -> Orange
+    [0,1,8],   // Yellow -> Red
+    [1,5,1],   // Red -> Orange
+    [1,4,7],   // Red -> Blue
+    [4,0,8],   // Blue -> Yellow
+    [4,2,5],   // Blue -> Green
+    [5,4,5]    // Orange -> Blue
+  ];
+
+  for(const [from,to,count] of transitions){
+    for(let copy=0;copy<count;copy++){
+      deck.push({id:id++,type:"flow",from,to});
+    }
+  }
+
+  // Special Black -> color rescue cards.
+  const purple=COLORS.find(c=>c.name==="Purple");
+  const orange=COLORS.find(c=>c.name==="Orange");
+  const green=COLORS.find(c=>c.name==="Green");
+
+  for(let copy=0;copy<4;copy++){
+    deck.push({id:id++,type:"purpleRescue",to:purple.id});
+  }
+  for(let copy=0;copy<1;copy++){
+    deck.push({id:id++,type:"purpleRescue",to:orange.id});
+  }
+  for(let copy=0;copy<1;copy++){
+    deck.push({id:id++,type:"purpleRescue",to:green.id});
+  }
+
+  // 6 shared rainbow jokers.
+  for(let copy=0;copy<6;copy++){
+    deck.push({id:id++,type:"rainbow"});
+  }
+
+  // 8 black blocking cards.
+  for(let copy=0;copy<8;copy++){
+    deck.push({id:id++,type:"block"});
+  }
+
+  // 8 White cards.
+  for(let copy=0;copy<8;copy++){
+    deck.push({id:id++,type:"white"});
+  }
+
+  return shuffle(deck);
+}
+
+function shuffle(a){
+  a=[...a];
+  for(let i=a.length-1;i>0;i--){
+    const j=Math.floor(Math.random()*(i+1));
+    [a[i],a[j]]=[a[j],a[i]];
+  }
+  return a;
+}
+
+function drawResolvedColumnBase(deck){
+  if(!deck.length) return null;
+
+  let card=deck.pop();
+
+  while(card && card.type==="white" && deck.length){
+    card=deck.pop();
+  }
+
+  return card;
+}
+
+function colorInfo(id){
+  return COLORS.find(c=>c.id===Number(id)) || COLORS[0];
+}
+
+function baseColorFromCard(card){
+  if(card.type==="single") return card.color;
+  if(card.type==="flow") return card.to;
+  if(card.type==="purpleRescue") return card.to;
+  if(card.type==="rainbow") return "rainbow";
+  if(card.type==="block") return "black";
+  return "black";
+}
+
+function makeSharedColumn(baseCard){
+  const color=baseColorFromCard(baseCard);
+  const startsBlocked=baseCard.type==="block";
+  return {
+    base:baseCard,
+    sides:[
+      {color,topCard:null,blocked:startsBlocked},
+      {color,topCard:null,blocked:startsBlocked}
+    ]
+  };
+}
+
+function cardLabel(card){
+  if(card.type==="white") return "White";
+  if(card.type==="rainbow") return "Rainbow Joker";
+  if(card.type==="block") return "Block";
+  if(card.type==="purpleRescue") return `Black → ${colorInfo(card.to).name}`;
+  if(card.type==="single") return colorInfo(card.color).name;
+  return `${colorInfo(card.from).name} → ${colorInfo(card.to).name}`;
+}
+
+function makeCard(card,interactive=false,allowed=true,onClick=null){
+  const d=document.createElement("div");
+  d.className=`card${card.type==="flow"?" flowcard":""}${allowed?"":" invalid"}`;
+  d.title=cardLabel(card);
+  if(card.id!==undefined) d.dataset.id=card.id;
+
+  if(card.type==="white"){
+    d.classList.add("whitecard","shared-base");
+    d.innerHTML=`<span class="white-eye" aria-label="White card"></span>`;
+  }else if(card.type==="rainbow"){
+    d.classList.add("rainbow");
+    d.innerHTML=`<span class="n">★</span>`;
+  }else if(card.type==="block"){
+    d.classList.add("blockcard");
+    d.innerHTML=`<span class="n">×</span>`;
+  }else if(card.type==="purpleRescue"){
+    d.classList.add("purple-rescue",colorInfo(card.to).className);
+    d.innerHTML=``;
+  }else if(card.type==="single"){
+    d.classList.add(colorInfo(card.color).className,"shared-base");
+    d.innerHTML=`<span class="tri-up"></span><span class="tri-down"></span>`;
+  }else{
+    const a=colorInfo(card.from), b=colorInfo(card.to);
+    d.innerHTML=`
+      <span class="destination ${b.className}"></span>
+      <span class="source ${a.className}"></span>`;
+  }
+
+  if(interactive && allowed && onClick) d.onclick=onClick;
+  return d;
+}
+
+function playableTargets(card){
+  // Single-color and White cards create a new shared column.
+  if(card.type==="single" || card.type==="white"){
+    return [{type:"newShared"}];
+  }
+
+  const targets=[];
+
+  // After White, the player may play one optional legal card only
+  // on their own side of the newly created column.
+  if(pendingWhiteFollowupColumn!==null){
+    const column=pendingWhiteFollowupColumn;
+    const col=state.columns[column];
+    if(!col) return [];
+
+    // White bonus: exactly one optional legal card may be played,
+    // and ONLY on either side of the newly created column.
+    // Cards that create columns can never be used here.
+    if(card.type==="single" || card.type==="white") return [];
+
+    col.sides.forEach((side,owner)=>{
+      if(card.type==="rainbow"){
+        // Joker is legal here only as a one-sided answer to Black.
+        if(side.blocked || side.color==="black"){
+          targets.push({type:"side",owner,column});
+        }
+        return;
+      }
+
+      if(card.type==="block"){
+        if(side.blocked) return;
+        const openColumns=state.columns.filter(c=>!c.sides[owner].blocked).length;
+        if(openColumns>2) targets.push({type:"side",owner,column});
+        return;
+      }
+
+      if(card.type==="purpleRescue"){
+        if(side.blocked || side.color==="black" || side.color==="rainbow"){
+          targets.push({type:"side",owner,column});
+        }
+        return;
+      }
+
+      if(card.type==="flow"){
+        if(side.blocked || Number(side.color)===3) return;
+        if(side.color==="rainbow" || Number(side.color)===Number(card.from)){
+          targets.push({type:"side",owner,column});
+        }
+      }
+    });
+
+    return targets;
+  }
+
+  // Rainbow Joker can create a new shared wild column.
+  // On a blocked side, including a column whose starting card is Black,
+  // it reopens ONLY the chosen side as wild.
+  if(card.type==="rainbow"){
+    targets.push({type:"newShared"});
+    state.columns.forEach((col,column)=>{
+      col.sides.forEach((side,owner)=>{
+        if(side.blocked || side.color==="black"){
+          targets.push({type:"side",owner,column});
+        }
+      });
+    });
+    return targets;
+  }
+
+  if(card.type==="block"){
+    state.columns.forEach((col,column)=>{
+      col.sides.forEach((side,owner)=>{
+        if(side.blocked) return;
+
+        // A player may only be blocked while they still have at least
+        // 3 open columns. After one block, they may drop to 2, but no lower.
+        const openColumns=state.columns.filter(c=>!c.sides[owner].blocked).length;
+        if(openColumns<=2) return;
+
+        targets.push({type:"side",owner,column});
+      });
+    });
+    return targets;
+  }
+
+  if(card.type==="purpleRescue"){
+    // Black -> Color cards can be played on blocked/black sides or on jokers.
+    state.columns.forEach((col,column)=>{
+      col.sides.forEach((side,owner)=>{
+        // An unresolved shared rainbow is one shared target.
+        if(col.base.type==="rainbow" &&
+           col.sides[0].color==="rainbow" &&
+           col.sides[1].color==="rainbow"){
+          if(owner===currentPlayerIndex){
+            targets.push({type:"side",owner,column,match:"sharedWild"});
+          }
+          return;
+        }
+
+        if(side.blocked || side.color==="black"){
+          targets.push({type:"side",owner,column,match:"black"});
+        }else if(side.color==="rainbow"){
+          targets.push({type:"side",owner,column,match:"wild"});
+        }
+      });
+    });
+    return targets;
+  }
+
+  if(card.type==="flow"){
+    state.columns.forEach((col,column)=>{
+      col.sides.forEach((side,owner)=>{
+        if(side.blocked) return;
+
+        // Purple is a dead-end color. No normal two-color card may be played on it.
+        // The only card allowed on active Purple is the fully black blocking card.
+        if(Number(side.color)===3) return;
+
+        // An unresolved rainbow column is one shared target.
+        // The first transition fixes the resulting color for both players.
+        if(col.base.type==="rainbow" &&
+           col.sides[0].color==="rainbow" &&
+           col.sides[1].color==="rainbow"){
+          if(owner===currentPlayerIndex){
+            targets.push({type:"side",owner,column,match:"sharedWild"});
+          }
+          return;
+        }
+
+        if(side.color==="rainbow"){
+          targets.push({type:"side",owner,column,match:"wild"});
+        }else if(Number(side.color)===Number(card.from)){
+          targets.push({type:"side",owner,column,match:"exact"});
+        }
+      });
+    });
+  }
+
+  return targets;
+}
+function canPlay(card){
+  return playableTargets(card).length>0;
+}
+
+function initGame(){
+  // Reset end-of-game UI before creating a fresh match.
+  els.resultOverlay.classList.add("hidden");
+  els.resultIcon.textContent="🏆";
+  els.resultTitle.textContent="";
+  els.resultText.textContent="";
+  els.resultActionBtn.textContent="Restart";
+
+  const deck=createDeck();
+  const players=[
+    {name:"Player 1",hand:[]},
+    {name:"Player 2",hand:[]}
+  ];
+
+  for(let i=0;i<6;i++){
+    players[0].hand.push(deck.pop());
+    players[1].hand.push(deck.pop());
+  }
+
+  // Shared board starts with exactly three cards from the shuffled deck.
+  // Any card may be a starting base and is treated like a shared one-color base:
+  // flow / Black→Purple use their destination color, rainbow stays wild,
+  // black block starts as Black.
+  state={deck,players,columns:[]};
+
+  for(let n=0;n<3 && deck.length;n++){
+    const base=deck.pop();
+    state.columns.push(makeSharedColumn(base));
+  }
+
+  if(roundNumber===0){
+    currentPlayerIndex=Math.random()<0.5 ? 0 : 1;
+  }else{
+    currentPlayerIndex=lastRoundLoser ?? 0;
+  }
+  roundNumber++;
+  drawnThisTurn=false;
+  drawnCardId=null;
+  gameOver=false;
+  lastPlayed=null;
+  pendingBlockCardId=null;
+  pendingFlowCardId=null;
+  pendingSpecialCardId=null;
+
+  els.loading.classList.add("hidden");
+  els.game.classList.remove("hidden");
+  els.connectionBadge.textContent="OFFLINE";
+  els.leaveBtn.textContent="Restart";
+  els.leaveBtn.onclick=()=>{
+    matchScores=[0,0];
+    matchWinner=null;
+    roundNumber=0;
+    lastRoundLoser=null;
+    initGame();
+  };
+  
+  render();
+}
+
+function render(){
+  if(!state || myPlayerIndex===null) return;
+
+  els.turnIndicator.textContent=`${state.players[currentPlayerIndex].name}'S TURN`;
+  els.turnIndicator.dataset.player=String(currentPlayerIndex+1);
+
+  const me=state.players[myPlayerIndex];
+  const op=state.players[1-myPlayerIndex];
+  const isMyTurn=currentPlayerIndex===myPlayerIndex && !gameOver;
+
+  els.youGuide.textContent=`YOU · ${me.name}`;
+  els.opponentGuide.textContent=`OPPONENT · ${op.name}`;
+
+  els.compactStats.textContent=
+    `${state.players[0].name}: ${matchScores[0]} pts · ${distinctColorCount(0)} colors · ${state.players[0].hand.length} cards   |   ` +
+    `${state.players[1].name}: ${matchScores[1]} pts · ${distinctColorCount(1)} colors · ${state.players[1].hand.length} cards`;
+
+  els.deckCount.textContent=`${state.deck.length} cards`;
+  const whiteFollowupActive =
+    pendingWhiteFollowupColumn!==null && currentPlayerIndex===myPlayerIndex && !gameOver;
+
+  els.passWhiteBtn.classList.add("hidden");
+  els.drawBtn.textContent=whiteFollowupActive
+    ? "End turn"
+    : (state.deck.length===1 ? "Draw 1 card" : "Draw 2 cards");
+  els.drawBtn.classList.toggle("white-end-turn",whiteFollowupActive);
+  els.drawBtn.disabled=gameOver || (!whiteFollowupActive && state.deck.length===0);
+  els.deck.classList.toggle(
+    "last-opponent-draw",
+    !!lastPlayed && lastPlayed.action==="draw" && lastPlayed.playerIndex!==myPlayerIndex
+  );
+
+
+
+  els.newColumnTarget.classList.add("hidden");
+  els.newColumnTarget.onclick=null;
+  if(isMyTurn && pendingSpecialCardId!==null){
+    const pending=me.hand.find(c=>c.id===pendingSpecialCardId);
+    if(pending?.type==="rainbow"){
+      els.newColumnTarget.classList.remove("hidden");
+      els.newColumnTarget.onclick=()=>{
+        const id=pendingSpecialCardId;
+        pendingSpecialCardId=null;
+        animateCardToTarget(id,{type:"newShared"}).then(()=>playCard(id,{type:"newShared"}));
+      };
+    }
+  }
+
+  els.piles.innerHTML="";
+
+  const board=document.createElement("div");
+  board.className="board-columns";
+
+  state.columns.forEach((col,column)=>{
+    const columnWrap=document.createElement("div");
+    columnWrap.className="board-column";
+
+    const topSlot=document.createElement("div");
+    topSlot.className="side-slot";
+    const center=document.createElement("div");
+    center.className="center-base";
+    const baseEl=makeCard(col.base,false,true);
+    baseEl.classList.add("shared-column-base");
+
+    if(
+      lastPlayed &&
+      lastPlayed.action==="play" &&
+      lastPlayed.playerIndex!==myPlayerIndex &&
+      lastPlayed.target?.type==="newShared" &&
+      lastPlayed.target.column===column
+    ){
+      baseEl.classList.add("last-opponent-move");
+    }
+
+    center.appendChild(baseEl);
+
+    const bottomSlot=document.createElement("div");
+    bottomSlot.className="side-slot";
+
+    col.sides.forEach((side,owner)=>{
+      // Your own side is always rendered at the bottom on your device.
+      const slot=owner===myPlayerIndex ? bottomSlot : topSlot;
+      if(side.blocked) slot.classList.add("blocked");
+
+      const pendingId=pendingBlockCardId ?? pendingFlowCardId ?? pendingSpecialCardId;
+      let validTarget=false;
+
+      if(isMyTurn && pendingId!==null){
+        const pending=me.hand.find(c=>c.id===pendingId);
+        if(pending){
+          validTarget=playableTargets(pending).some(
+            t=>t.type==="side" && t.owner===owner && t.column===column
+          );
+        }
+      }
+
+      let visualEl;
+      if(side.blocked){
+        visualEl=makeCard({type:"block"},false,true);
+
+        if(
+          lastPlayed &&
+          lastPlayed.action==="play" &&
+          lastPlayed.playerIndex!==myPlayerIndex &&
+          lastPlayed.card?.type==="block" &&
+          lastPlayed.target?.type==="side" &&
+          lastPlayed.target.owner===owner &&
+          lastPlayed.target.column===column
+        ){
+          visualEl.classList.add("last-opponent-move");
+        }
+      }else if(side.topCard){
+        visualEl=makeCard(side.topCard,false,true);
+        if(owner!==myPlayerIndex && (side.topCard.type==="flow" || side.topCard.type==="purpleRescue")){
+          visualEl.classList.add("reverse-flow");
+        }
+
+        if(
+          lastPlayed &&
+          lastPlayed.action==="play" &&
+          lastPlayed.playerIndex!==myPlayerIndex &&
+          lastPlayed.target?.type==="side" &&
+          lastPlayed.target.owner===owner &&
+          lastPlayed.target.column===column
+        ){
+          visualEl.classList.add("last-opponent-move");
+        }
+      }else{
+        visualEl=document.createElement("div");
+        visualEl.className="empty-slot";
+      }
+
+      if(validTarget){
+        slot.classList.add("selectable");
+        visualEl.onclick=()=>playChosenTarget({type:"side",owner,column});
+      }
+
+      slot.appendChild(visualEl);
+    });
+
+    columnWrap.appendChild(topSlot);
+    columnWrap.appendChild(center);
+    columnWrap.appendChild(bottomSlot);
+    board.appendChild(columnWrap);
+  });
+
+  els.piles.appendChild(board);
+
+  els.turnHeading.textContent=isMyTurn ? "Your turn" : `${op.name}'s turn`;
+  els.hint.textContent=isMyTurn ? "Play a card or draw 2 cards." : "Waiting for your opponent…";
+
+  els.hand.innerHTML="";
+  me.hand.forEach(card=>{
+    let allowed=isMyTurn && !drawnThisTurn &&
+      pendingBlockCardId===null && pendingFlowCardId===null && pendingSpecialCardId===null &&
+      canPlay(card);
+
+    const el=makeCard(card,true,allowed,()=>{
+      if(!isMyTurn) return;
+      const targets=playableTargets(card);
+      if(!targets.length) return;
+
+      if(card.type==="single" || card.type==="white"){
+        animateCardToTarget(card.id,{type:"newShared"}).then(()=>playCard(card.id,{type:"newShared"}));
+        return;
+      }
+
+      if(card.type==="rainbow"){
+        if(targets.length===1){
+          animateCardToTarget(card.id,{type:"newShared"}).then(()=>playCard(card.id,{type:"newShared"}));
+        }else{
+          pendingSpecialCardId=card.id;
+          pendingBlockCardId=null;
+          pendingFlowCardId=null;
+          render();
+        }
+        return;
+      }
+
+      const sideTargets=targets.filter(t=>t.type==="side");
+      const sideOwners=[...new Set(sideTargets.map(t=>t.owner))];
+      const matchKinds=[...new Set(sideTargets.map(t=>t.match || "other"))];
+
+      const hasExactAndWild=
+        matchKinds.includes("exact") &&
+        (matchKinds.includes("wild") || matchKinds.includes("sharedWild"));
+
+      const hasTwoJokerTypes=
+        matchKinds.includes("wild") &&
+        matchKinds.includes("sharedWild");
+
+      if(
+        targets.length>1 &&
+        sideOwners.length===1 &&
+        card.type!=="block" &&
+        !hasExactAndWild &&
+        !hasTwoJokerTypes
+      ){
+        const randomTarget=targets[Math.floor(Math.random()*targets.length)];
+        animateCardToTarget(card.id,randomTarget).then(()=>playCard(card.id,randomTarget));
+        return;
+      }
+
+      if(card.type==="block"){
+        if(targets.length===1){
+          animateCardToTarget(card.id,targets[0]).then(()=>playCard(card.id,targets[0]));
+        }else{
+          pendingBlockCardId=card.id;
+          pendingFlowCardId=null;
+          pendingSpecialCardId=null;
+          render();
+        }
+        return;
+      }
+
+      if(card.type==="purpleRescue"){
+        if(targets.length===1){
+          animateCardToTarget(card.id,targets[0]).then(()=>playCard(card.id,targets[0]));
+        }else{
+          pendingSpecialCardId=card.id;
+          pendingBlockCardId=null;
+          pendingFlowCardId=null;
+          render();
+        }
+        return;
+      }
+
+      if(card.type==="flow"){
+        if(targets.length===1){
+          animateCardToTarget(card.id,targets[0]).then(()=>playCard(card.id,targets[0]));
+        }else{
+          pendingFlowCardId=card.id;
+          pendingBlockCardId=null;
+          pendingSpecialCardId=null;
+          render();
+        }
+      }
+    });
+    els.hand.appendChild(el);
+  });
+
+  const playable=me.hand.filter(canPlay);
+  if(!isMyTurn){
+    els.status.textContent="";
+  }else if(pendingBlockCardId!==null){
+    els.status.textContent="Choose one of the highlighted piles to block.";
+  }else if(pendingFlowCardId!==null || pendingSpecialCardId!==null){
+    els.status.textContent=pendingSpecialCardId!==null
+      ? "Choose a highlighted target, or start a new column."
+      : "Choose the target.";
+  }else if(drawnThisTurn){
+    els.status.textContent="2 cards drawn. Turn ends.";
+  }else{
+    els.status.textContent=playable.length ? "" : "No playable card. Draw 2.";
+  }
+
+  els.passBtn.classList.add("hidden");
+  els.drawBtn.disabled=!isMyTurn || drawnThisTurn || gameOver ||
+    pendingBlockCardId!==null || pendingFlowCardId!==null || pendingSpecialCardId!==null;
+}
+
+function distinctColorCount(playerIndex){
+  const colors=[];
+  state.columns.forEach(col=>{
+    const side=col.sides[playerIndex];
+    if(!side.blocked && side.color!=="rainbow" && side.color!=="black"){
+      colors.push(String(side.color));
+    }
+  });
+  return new Set(colors).size;
+}
+
+function endRoundNoWinner(reason="Draw pile empty"){
+  gameOver=true;
+  lastRoundLoser=null;
+  pendingWhiteFollowupColumn=null;
+  pendingBlockCardId=null;
+  pendingFlowCardId=null;
+  pendingSpecialCardId=null;
+
+  const roundResult={
+    noWinner:true,
+    reason,
+    score:0,
+    matchOver:false
+  };
+
+  render();
+  syncGame(roundResult);
+}
+
+function finishGame(winnerIndex){
+  // The player who played the card wins the round, even if that same move
+  // gives both players 5 different colors at once.
+  const loserIndex=1-winnerIndex;
+  const winner=state.players[winnerIndex];
+  const loser=state.players[loserIndex];
+  const opponentColors=distinctColorCount(loserIndex);
+
+  const rawScore =
+    5 * (5 - opponentColors) -
+    winner.hand.length +
+    loser.hand.length;
+
+  const score=Math.max(0,rawScore);
+  matchScores[winnerIndex]+=score;
+  lastRoundLoser=loserIndex;
+  gameOver=true;
+  matchWinner=matchScores[winnerIndex]>=25 ? winnerIndex : null;
+
+  const roundResult={
+    winnerIndex,
+    score,
+    matchOver:matchWinner!==null
+  };
+
+  render();
+  syncGame(roundResult);
+}
+
+function animateCardToTarget(cardId,target){
+  const source=document.querySelector(`#hand .card[data-id="${cardId}"]`);
+  if(!source) return Promise.resolve();
+
+  let targetEl=null;
+
+  if(target?.type==="newShared"){
+    targetEl=els.piles;
+  }else if(target?.type==="side"){
+    const columns=[...document.querySelectorAll(".board-column")];
+    const col=columns[target.column];
+    if(col){
+      const slots=col.querySelectorAll(".side-slot");
+      targetEl=target.owner===myPlayerIndex ? slots[1] : slots[0];
+    }
+  }
+
+  if(!targetEl) return Promise.resolve();
+
+  const s=source.getBoundingClientRect();
+  const t=targetEl.getBoundingClientRect();
+  const clone=source.cloneNode(true);
+  clone.classList.add("fly-card");
+  clone.style.left=`${s.left}px`;
+  clone.style.top=`${s.top}px`;
+  clone.style.width=`${s.width}px`;
+  clone.style.height=`${s.height}px`;
+  clone.style.transform="translate(0,0) scale(1)";
+  document.body.appendChild(clone);
+
+  const dx=(t.left+t.width/2)-(s.left+s.width/2);
+  const dy=(t.top+t.height/2)-(s.top+s.height/2);
+  const scale=Math.min(1, t.width/s.width || 1);
+
+  return new Promise(resolve=>{
+    requestAnimationFrame(()=>{
+      clone.style.transform=`translate(${dx}px,${dy}px) scale(${scale})`;
+      clone.style.opacity=".15";
+    });
+    setTimeout(()=>{
+      clone.remove();
+      resolve();
+    },390);
+  });
+}
+
+function playCard(cardId,target){
+  if(gameOver || myPlayerIndex===null || currentPlayerIndex!==myPlayerIndex) return;
+
+  const player=state.players[currentPlayerIndex];
+  const idx=player.hand.findIndex(c=>c.id===cardId);
+  if(idx<0) return;
+  const card=player.hand[idx];
+
+  if(drawnThisTurn && card.id!==drawnCardId) return;
+
+  if(card.type==="white" && target.type==="newShared"){
+    if(!state.deck.length) return;
+    const randomStart=drawResolvedColumnBase(state.deck);
+    if(!randomStart) return;
+    state.columns.push(makeSharedColumn(randomStart));
+    pendingWhiteFollowupColumn=state.columns.length-1;
+  }else if(card.type==="single" || (card.type==="rainbow" && target.type==="newShared")){
+    state.columns.push(makeSharedColumn(card));
+  }else{
+    const pile=state.columns[target.column]?.sides[target.owner];
+    if(!pile) return;
+
+    // Purple can only be covered by the fully black blocking card.
+    if(Number(pile.color)===3 && card.type!=="block") return;
+
+    if(card.type==="rainbow"){
+      if(!pile.blocked) return;
+      pile.blocked=false;
+      pile.color="rainbow";
+      pile.topCard=card;
+    }else if(card.type==="block"){
+      if(pile.blocked) return;
+      pile.blocked=true;
+      pile.color="black";
+      pile.topCard=card;
+    }else if(card.type==="purpleRescue"){
+      const column=state.columns[target.column];
+
+      // Black → Color on an unresolved shared Joker determines
+      // that column's color for BOTH players.
+      if(
+        column &&
+        column.base.type==="rainbow" &&
+        column.sides[0].color==="rainbow" &&
+        column.sides[1].color==="rainbow"
+      ){
+        column.base=card;
+        column.sides[0].color=card.to;
+        column.sides[1].color=card.to;
+        column.sides[0].blocked=false;
+        column.sides[1].blocked=false;
+        column.sides[0].topCard=null;
+        column.sides[1].topCard=null;
+      }else{
+        // Black → Color may also resolve a one-sided Joker or
+        // reopen a black blocked side.
+        if(!(pile.blocked || pile.color==="black" || pile.color==="rainbow")) return;
+        pile.blocked=false;
+        pile.color=card.to;
+        pile.topCard=card;
+      }
+    }else{
+      if(pile.blocked) return;
+
+      const column=state.columns[target.column];
+
+      // A rainbow joker is a shared unresolved base.
+      // The first transition played on either side replaces the joker in the center
+      // and establishes its destination color for BOTH players.
+      if(column && column.base.type==="rainbow" &&
+         column.sides[0].color==="rainbow" &&
+         column.sides[1].color==="rainbow"){
+        column.base=card;
+        column.sides[0].color=card.to;
+        column.sides[1].color=card.to;
+        column.sides[0].topCard=null;
+        column.sides[1].topCard=null;
+      }else{
+        if(pile.color!=="rainbow" && Number(pile.color)!==Number(card.from)) return;
+        pile.color=card.to;
+        pile.topCard=card;
+      }
+    }
+  }
+
+  player.hand.splice(idx,1);
+
+  lastPlayed={
+    action:"play",
+    playerIndex:currentPlayerIndex,
+    card:{...card},
+    target:{
+      ...target,
+      column:target.type==="newShared" ? state.columns.length-1 : target.column
+    }
+  };
+
+  pendingBlockCardId=null;
+  pendingFlowCardId=null;
+  pendingSpecialCardId=null;
+
+  if(distinctColorCount(currentPlayerIndex)>=5){
+    finishGame(currentPlayerIndex);
+    return;
+  }
+
+  if(card.type==="white"){
+    if(state.deck.length===0){
+      endRoundNoWinner("Draw pile empty");
+      return;
+    }
+    render();
+    syncGame(null);
+    return;
+  }
+
+  if(pendingWhiteFollowupColumn!==null){
+    pendingWhiteFollowupColumn=null;
+  }
+  nextTurn();
+}
+
+
+function playChosenTarget(target){
+  const cardId=pendingBlockCardId ?? pendingFlowCardId ?? pendingSpecialCardId;
+  if(cardId===null) return;
+
+  const card=state.players[currentPlayerIndex].hand.find(c=>c.id===cardId);
+  if(!card) return;
+
+  const valid=playableTargets(card).some(
+    t=>t.type==="side" &&
+       t.owner===target.owner &&
+       t.column===target.column
+  );
+  if(!valid) return;
+
+  pendingBlockCardId=null;
+  pendingFlowCardId=null;
+  pendingSpecialCardId=null;
+  animateCardToTarget(cardId,target).then(()=>playCard(cardId,target));
+}
+
+function drawCard(){
+  if(myPlayerIndex===null || currentPlayerIndex!==myPlayerIndex) return;
+  if(drawnThisTurn || gameOver || pendingWhiteFollowupColumn!==null || pendingBlockCardId!==null || pendingFlowCardId!==null || pendingSpecialCardId!==null) return;
+  if(!state.deck.length) return;
+
+  const player=state.players[currentPlayerIndex];
+  for(let i=0;i<2 && state.deck.length;i++){
+    player.hand.push(state.deck.pop());
+  }
+
+  drawnThisTurn=true;
+  drawnCardId=null;
+  lastPlayed={
+    action:"draw",
+    playerIndex:currentPlayerIndex
+  };
+
+  if(state.deck.length===0){
+    endRoundNoWinner("Draw pile empty");
+    return;
+  }
+
+  render();
+  setTimeout(nextTurn,350);
+}
+
+function nextTurn(){
+  drawnThisTurn=false;
+  drawnCardId=null;
+  pendingBlockCardId=null;
+  pendingFlowCardId=null;
+  pendingSpecialCardId=null;
+  currentPlayerIndex=1-currentPlayerIndex;
+  syncGame(null);
+}
+
+
+function buildRoundGame(scores=[0,0],roundNo=0,starter=null){
+  const deck=createDeck();
+  const players=[
+    {name:"Player 1",hand:[]},
+    {name:"Player 2",hand:[]}
+  ];
+
+  for(let i=0;i<6;i++){
+    players[0].hand.push(deck.pop());
+    players[1].hand.push(deck.pop());
+  }
+
+  const columns=[];
+  for(let n=0;n<3 && deck.length;n++){
+    const base=drawResolvedColumnBase(deck);
+    if(base) columns.push(makeSharedColumn(base));
+  }
+
+  return {
+    state:{deck,players,columns},
+    currentPlayerIndex:starter===null ? (Math.random()<.5 ? 0 : 1) : starter,
+    matchScores:scores,
+    roundNumber:roundNo,
+    lastRoundLoser:starter,
+    gameOver:false,
+    roundResult:null,
+    lastPlayed:null,
+    pendingWhiteFollowupColumn:null,
+    updatedAt:Date.now()
+  };
+}
+
+function stopWaitingHeartbeat(){
+  if(waitingHeartbeat){
+    clearInterval(waitingHeartbeat);
+    waitingHeartbeat=null;
+  }
+}
+
+function stopAssignmentListener(){
+  if(assignmentRef && assignmentListener){
+    assignmentRef.off("value",assignmentListener);
+  }
+  assignmentRef=null;
+  assignmentListener=null;
+}
+
+function stopRoomListener(){
+  if(roomRef && roomListener){
+    roomRef.off("value",roomListener);
+  }
+  roomRef=null;
+  roomListener=null;
+}
+
+function applyRemoteGame(game){
+  if(!game) return;
+
+  syncingRemote=true;
+  state=game.state;
+  currentPlayerIndex=Number(game.currentPlayerIndex ?? 0);
+  matchScores=game.matchScores || [0,0];
+  roundNumber=Number(game.roundNumber ?? 0);
+  lastRoundLoser=game.lastRoundLoser ?? null;
+  gameOver=!!game.gameOver;
+  lastPlayed=game.lastPlayed || null;
+  pendingWhiteFollowupColumn=game.pendingWhiteFollowupColumn ?? null;
+  matchWinner=game.roundResult?.matchOver ? game.roundResult.winnerIndex : null;
+
+  drawnThisTurn=false;
+  drawnCardId=null;
+  pendingBlockCardId=null;
+  pendingFlowCardId=null;
+  pendingSpecialCardId=null;
+
+  els.loading.classList.add("hidden");
+  els.game.classList.remove("hidden");
+  els.connectionBadge.textContent="ONLINE";
+
+  render();
+  renderRoundResult(game.roundResult);
+  syncingRemote=false;
+}
+
+function renderRoundResult(result){
+  if(!gameOver || !result){
+    els.resultOverlay.classList.add("hidden");
+    return;
+  }
+
+  if(result.noWinner){
+    els.resultIcon.textContent="•";
+    els.resultTitle.textContent="Round ends";
+    els.resultText.textContent=
+      `${result.reason || "Draw pile empty"}. No points are awarded. Match score: ${matchScores[0]}–${matchScores[1]}.`;
+    els.resultActionBtn.textContent="Next round";
+    els.resultActionBtn.onclick=()=>requestNextRound(false);
+    els.resultOverlay.classList.remove("hidden");
+    return;
+  }
+
+  const winner=state.players[result.winnerIndex];
+  els.resultIcon.textContent=result.matchOver ? "🏆" : "★";
+  els.resultTitle.textContent=result.matchOver
+    ? `${winner.name} wins the match!`
+    : `${winner.name} wins the round`;
+  els.resultText.textContent=
+    `+${result.score} points · Match score: ${matchScores[0]}–${matchScores[1]} · First to 25.`;
+  els.resultActionBtn.textContent=result.matchOver ? "New match" : "Next round";
+  els.resultActionBtn.onclick=()=>requestNextRound(result.matchOver);
+  els.resultOverlay.classList.remove("hidden");
+}
+
+function syncGame(roundResult){
+  if(!roomRef || !state) return Promise.resolve();
+
+  return roomRef.child("game").set({
+    state,
+    currentPlayerIndex,
+    matchScores,
+    roundNumber,
+    lastRoundLoser,
+    gameOver,
+    roundResult:roundResult || null,
+    lastPlayed,
+    pendingWhiteFollowupColumn,
+    updatedAt:Date.now()
+  });
+}
+
+async function requestNextRound(newMatch=false){
+  if(!roomRef) return;
+
+  await roomRef.child("game").transaction(current=>{
+    if(!current || !current.gameOver) return;
+
+    const scores=newMatch ? [0,0] : (current.matchScores || [0,0]);
+    const nextRound=newMatch ? 0 : Number(current.roundNumber || 0)+1;
+
+    let starter=null;
+    if(!newMatch && !current.roundResult?.noWinner){
+      starter=Number(current.lastRoundLoser ?? 0);
+    }
+
+    return buildRoundGame(scores,nextRound,starter);
+  });
+}
+
+function watchRoom(id){
+  stopRoomListener();
+  stopWaitingHeartbeat();
+  stopAssignmentListener();
+
+  roomId=id;
+  roomRef=db.ref(`rooms/${id}`);
+
+  roomListener=roomRef.on("value",snap=>{
+    if(!snap.exists()){
+      roomId=null;
+      findMatch();
+      return;
+    }
+
+    const room=snap.val();
+    const players=room.players || {};
+
+    if(players[0]===uid) myPlayerIndex=0;
+    else if(players[1]===uid) myPlayerIndex=1;
+    else return;
+
+    if(room.status==="abandoned"){
+      els.loading.classList.remove("hidden");
+      els.game.classList.add("hidden");
+      els.loadingTitle.textContent="Opponent left";
+      els.loadingText.textContent="Finding a new opponent…";
+      setTimeout(findMatch,500);
+      return;
+    }
+
+    if(room.status==="playing" && room.game){
+      applyRemoteGame(room.game);
+    }
+  },err=>{
+    console.error("Room listener:",err);
+    showConnectionError(err);
+  });
+}
+
+function listenForAssignment(){
+  stopAssignmentListener();
+
+  assignmentRef=db.ref(`assignments/${uid}`);
+  assignmentListener=assignmentRef.on("value",snap=>{
+    if(!snap.exists()) return;
+
+    const assignedRoom=snap.val()?.roomId;
+    if(!assignedRoom || roomId) return;
+
+    watchRoom(assignedRoom);
+  },err=>{
+    console.error("Assignment listener:",err);
+    showConnectionError(err);
+  });
+}
+
+function startWaitingHeartbeat(){
+  stopWaitingHeartbeat();
+
+  waitingHeartbeat=setInterval(async()=>{
+    try{
+      await db.ref("matchmaking/waiting").transaction(current=>{
+        if(current?.uid!==uid || current?.claimedBy) return current;
+        return {...current,name:nickname,updatedAt:Date.now()};
+      });
+    }catch(err){
+      console.warn("Waiting heartbeat:",err);
+    }
+  },4000);
+}
+
+async function createRoomForClaim(waiterUid,waiterName,claimId){
+  const id=db.ref("rooms").push().key;
+
+  const game=buildRoundGame([0,0],0,null);
+  game.state.players[0].name=waiterName || "Player 1";
+  game.state.players[1].name=nickname || "Player 2";
+
+  const room={
+    status:"playing",
+    players:{0:waiterUid,1:uid},
+    playerNames:{0:waiterName || "Player 1",1:nickname || "Player 2"},
+    game,
+    createdAt:Date.now(),
+    updatedAt:Date.now()
+  };
+
+  const updates={};
+  updates[`rooms/${id}`]=room;
+  updates[`assignments/${waiterUid}`]={roomId:id};
+  updates[`assignments/${uid}`]={roomId:id};
+
+  try{
+    await db.ref().update(updates);
+
+    await db.ref("matchmaking/waiting").transaction(current=>{
+      if(current?.claimId===claimId && current?.claimedBy===uid) return null;
+      return current;
+    });
+
+    watchRoom(id);
+  }catch(err){
+    await db.ref("matchmaking/waiting").transaction(current=>{
+      if(current?.claimId===claimId && current?.claimedBy===uid){
+        return {
+          uid:waiterUid,
+          name:waiterName || "Player",
+          createdAt:Number(current.createdAt || Date.now()),
+          updatedAt:Date.now()
+        };
+      }
+      return current;
+    });
+    throw err;
+  }
+}
+
+async function quickMatch(){
+  const waitingRef=db.ref("matchmaking/waiting");
+  const claimId="c_" + Math.random().toString(36).slice(2) + Date.now().toString(36);
+
+  const tx=await waitingRef.transaction(current=>{
+    const now=Date.now();
+
+    if(
+      !current ||
+      (
+        current.uid &&
+        !current.claimedBy &&
+        Number(current.updatedAt || current.createdAt || 0) < now-15000
+      )
+    ){
+      return {uid,name:nickname,createdAt:now,updatedAt:now};
+    }
+
+    if(
+      current.uid &&
+      current.claimedBy &&
+      Number(current.claimedAt || 0) < now-12000
+    ){
+      return {
+        uid:current.uid,
+        name:current.name || "Player",
+        createdAt:Number(current.createdAt || now),
+        updatedAt:now
+      };
+    }
+
+    if(current.uid===uid && !current.claimedBy){
+      return {...current,name:nickname,updatedAt:now};
+    }
+
+    if(current.uid && current.uid!==uid && !current.claimedBy){
+      return {
+        ...current,
+        claimedBy:uid,
+        claimId,
+        claimedAt:now
+      };
+    }
+
+    return current;
+  });
+
+  if(!tx.committed){
+    throw new Error("MATCHMAKING_TRANSACTION_FAILED");
+  }
+
+  const finalState=tx.snapshot.val();
+
+  if(
+    finalState?.uid &&
+    finalState.uid!==uid &&
+    finalState.claimedBy===uid &&
+    finalState.claimId===claimId
+  ){
+    await createRoomForClaim(finalState.uid,finalState.name || "Player 1",claimId);
+    return;
+  }
+
+  if(finalState?.uid===uid && !finalState.claimedBy){
+    listenForAssignment();
+    startWaitingHeartbeat();
+    els.loadingTitle.textContent="Waiting for another player…";
+    els.loadingText.textContent="Quick Game · matchmaking active";
+    return;
+  }
+
+  setTimeout(()=>{
+    if(!roomId) quickMatch().catch(showConnectionError);
+  },450);
+}
+
+async function findMatch(){
+  try{
+    stopWaitingHeartbeat();
+    stopAssignmentListener();
+    stopRoomListener();
+
+    roomId=null;
+    myPlayerIndex=null;
+    state=null;
+
+    els.resultOverlay.classList.add("hidden");
+    els.game.classList.add("hidden");
+    els.loading.classList.remove("hidden");
+    els.nicknamePanel.classList.add("hidden");
+    els.matchSpinner.classList.remove("hidden");
+    els.loadingTitle.textContent="Connecting…";
+    els.loadingText.textContent="Checking Quick Game matchmaking.";
+
+    await db.ref(`assignments/${uid}`).remove();
+    await quickMatch();
+  }catch(err){
+    console.error("Matchmaking:",err);
+    showConnectionError(err);
+  }
+}
+
+function showConnectionError(err){
+  els.loading.classList.remove("hidden");
+  els.game.classList.add("hidden");
+  els.matchSpinner.classList.add("hidden");
+  els.nicknamePanel.classList.remove("hidden");
+  els.loadingTitle.textContent="Firebase connection error";
+  els.loadingText.textContent=err?.code || err?.message || "Could not access database.";
+}
+
+async function leaveAndRematch(){
+  try{
+    stopWaitingHeartbeat();
+    stopAssignmentListener();
+
+    const oldRoomRef=roomRef;
+    stopRoomListener();
+
+    await db.ref("matchmaking/waiting").transaction(current=>{
+      if(current?.uid===uid && !current?.claimedBy) return null;
+      return current;
+    });
+
+    await db.ref(`assignments/${uid}`).remove();
+
+    if(oldRoomRef){
+      await oldRoomRef.transaction(room=>{
+        if(!room) return room;
+        room.status="abandoned";
+        room.updatedAt=Date.now();
+        return room;
+      });
+    }
+
+    roomId=null;
+    myPlayerIndex=null;
+    state=null;
+    await quickMatch();
+  }catch(err){
+    console.error("Leave/rematch:",err);
+    showConnectionError(err);
+  }
+}
+
+function startOnline(){
+  els.connectionBadge.textContent="CONNECTING";
+  els.leaveBtn.textContent="New opponent";
+  els.leaveBtn.onclick=leaveAndRematch;
+  findMatch();
+}
+
+function openRules(){
+  els.rulesOverlay.classList.remove("hidden");
+}
+
+function closeRules(){
+  els.rulesOverlay.classList.add("hidden");
+}
+
+els.rulesBtn.addEventListener("click",openRules);
+els.rulesClose.addEventListener("click",closeRules);
+els.rulesCloseBottom.addEventListener("click",closeRules);
+els.rulesOverlay.addEventListener("click",event=>{
+  if(event.target===els.rulesOverlay) closeRules();
+});
+
+els.drawBtn.onclick=()=>{
+  if(pendingWhiteFollowupColumn!==null){
+    pendingWhiteFollowupColumn=null;
+    nextTurn();
+    return;
+  }
+  drawCard();
+};
+els.passWhiteBtn.onclick=()=>{
+  if(pendingWhiteFollowupColumn===null || gameOver) return;
+  pendingWhiteFollowupColumn=null;
+  nextTurn();
+};
+els.deck.onclick=drawCard;
+els.passBtn.classList.add('hidden');
+
+function submitNickname(){
+  const value=(els.nicknameInput.value || "").trim().replace(/\s+/g," ").slice(0,18);
+  nickname=value || "Player";
+  els.nicknameInput.value=nickname;
+  els.nicknameBtn.disabled=true;
+  startOnline();
+}
+
+els.nicknameBtn.addEventListener("click",submitNickname);
+els.nicknameInput.addEventListener("keydown",event=>{
+  if(event.key==="Enter") submitNickname();
+});
+els.nicknameInput.focus();
+</script>
+</body>
+</html>
