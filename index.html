@@ -803,7 +803,7 @@ button{font:inherit}
 
     <div id="matchSpinner" class="spinner hidden"></div>
     <h2 id="loadingTitle">Choose a nickname</h2>
-    <p id="loadingText" class="muted">Then join Quick Game matchmaking.</p>
+    <p id="loadingText" class="muted">Then join a random game.</p>
   </div>
 </section>
 
@@ -815,7 +815,6 @@ button{font:inherit}
         <div class="title">COLOR FLOW</div>
         <div id="compactStats" class="compact-stats"></div>
       </div>
-      <div class="small">Online Quick Game</div>
     </div>
     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
       <button id="rulesBtn" class="action" style="padding:8px 12px">Rules</button>
@@ -870,21 +869,20 @@ button{font:inherit}
     <div class="rules-grid">
       <section class="rules-card">
         <h3>Goal</h3>
-        <p>Be the first player in a round to have <b>5 different active colors</b> on your own side of the shared columns. Rounds award points. The first player to reach <b>25 points</b> wins the match.</p>
+        <p>Be the first player in a round to have <b>5 different colors</b> on your own ends of the shared columns. You get points for having more colors and less cards then your opponent. The first player to reach <b>25 points</b> wins the match.</p>
 
         <h3 class="rules-subhead">Scoring</h3>
-        <p>When a player reaches 5 different colors, that round ends immediately. If a single played card causes both players to reach 5 colors at the same time, <b>the player who played that card wins the round</b>.</p>
+        <p>When a player reaches 5 different colors, that round ends immediately. If both players reach 5 colors at the same time, <b>the player who played the last card wins the round</b>.</p>
         <div class="score-formula">Score = 5 × (5 − opponent colors) + opponent cards − your cards</div>
-        <p>So when you finish, having fewer cards in your hand is also good. <b>A round win can never award negative points; the minimum score is 0.</b></p>
+        <p>A round win can never award negative points.</p>
       </section>
 
       <section class="rules-card">
         <h3>Playing the game</h3>
-        <p>The round starts with <b>3 shared columns</b>. Cards in the middle create shared columns, and each player builds on their own side. The two sides can develop into different colors.</p>
-        <p>On your turn, play <b>one card</b> or draw <b>2 cards</b>. Drawing ends your turn, and drawn cards cannot be played until a later turn.</p>
-        <p>If the <b>draw pile runs out</b>, the round ends immediately. No cards are reshuffled and <b>no points are awarded</b>, unless the card just played has already completed 5 colors and ended the round normally.</p>
-        <p>You can sometimes play on either your own or your opponent's side. The opponent's last played card is highlighted on the board; if they drew instead, the draw pile is highlighted.</p>
-        <p>A shared Joker starts unresolved and does not count toward the 5 different colors while unresolved. The first two-color card played on it determines the starting color for both sides of that column.</p>
+        <p>The round starts with <b>3 shared columns</b>. Cards in the middle create shared columns, and each player can build on both sides, but only the bottom one is their own. The two sides can develop into different colors.</p>
+        <p>On your turn, play <b>one card</b> or draw <b>2 cards</b>.</p>
+        <p>If the <b>draw pile runs out</b> and noone reached 5 colors, the round ends immediately in a draw (0 points for both).</p>
+        <p>An unresolved Joker does not count toward the 5 different colors, nor does the black blocking card.</p>
       </section>
     </div>
 
@@ -908,12 +906,12 @@ button{font:inherit}
 
       <div class="rule-row">
         <span class="rule-icon rule-block">×</span>
-        <div><b>Black blocking card</b><br><span>Blocks one side of a column. You may only block a player who currently has at least 3 open columns; once they are down to 2, they cannot be blocked again. A blocked side can be reopened with a Joker or a Black → Color card.</span></div>
+        <div><b>Black blocking card</b><br><span>Blocks one side of a column. You may only block a player who currently has at least 3 open columns. A blocked side can be reopened with a Joker or a Black transition card.</span></div>
       </div>
 
       <div class="rule-row">
         <span class="rule-icon rule-white"></span>
-        <div><b>White card</b><br><span>Starts a new shared column with the top card of the draw pile. If another White is revealed, reveal again until a non-White card appears. You may then optionally play one legal card from your hand on either side of that new column only. This bonus cannot create another column: Single-color and White cards cannot be used, and a Joker can only be used if it legally covers Black on the new column. Then your turn ends.</span></div>
+        <div><b>White card</b><br><span>Starts a new shared column with the top card of the draw pile. If another White is revealed, repeat. You may then optionally play one legal card from your hand on either side of that new column only.</span></div>
       </div>
     </div>
 
